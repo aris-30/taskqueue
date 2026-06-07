@@ -27,17 +27,15 @@ A production-grade distributed task queue built from scratch in Python. Inspired
 | Infra | Docker Compose |
 
 ## Architecture
-API Clients → FastAPI REST → Redis Queues → Async Worker Pool
-↓                   ↓
-Dead-letter Q        PostgreSQL
-↓                   ↓
-Dashboard ← WebSocket ← Events
+
+Clients hit the FastAPI REST layer, which pushes jobs into Redis priority queues. A pool of async Python workers pulls from those queues, executes jobs, and writes results to PostgreSQL. Failed jobs retry with exponential backoff and eventually land in a dead-letter queue. A WebSocket connection streams live job events to the React dashboard.
+
 ## Running locally
 
 **Prerequisites:** Docker Desktop, that's it.
 
 ```bash
-git clone https://github.com/YOURUSERNAME/taskqueue.git
+git clone https://github.com/aris-30/taskqueue.git
 cd taskqueue
 cp .env.example .env
 docker compose up --build
@@ -89,15 +87,8 @@ curl http://localhost:8000/jobs \
 **How does retry backoff work?** Each retry delay is calculated as `backoff_base ^ retry_count` seconds (e.g. 2s, 4s, 8s). Failed jobs are re-inserted into Redis as delayed jobs using a sorted set scored by their next-run timestamp.
 
 ## Project structure
-taskqueue/
-├── backend/
-│   ├── app/
-│   │   ├── api/routes/     # REST endpoints
-│   │   ├── core/           # Queue engine, worker pool, scheduler
-│   │   ├── models/         # SQLAlchemy models
-│   │   └── schemas/        # Pydantic request/response schemas
-│   └── alembic/            # Database migrations
-└── dashboard/              # React frontend
+
+The backend lives in `/backend/app` and is split into `api/routes` for REST endpoints, `core` for the queue engine and worker pool, `models` for SQLAlchemy models, and `schemas` for Pydantic validation. The React dashboard lives in `/dashboard`.
 
 ## Running tests
 
